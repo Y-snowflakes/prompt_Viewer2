@@ -28,38 +28,47 @@ margin:40px;
 }
 
 </style>
-
 </head>
 
 <body>
 
 <h2>PNG画像をドラッグしてください</h2>
 
-<div id="drop">
-ここに画像をドロップ
-</div>
+<div id="drop">ここに画像をドロップ</div>
 
-<form id="form" method="POST" enctype="multipart/form-data">
-<input id="file" type="file" name="file" hidden>
-</form>
-
-<pre>{{text}}</pre>
+<pre id="result">{{text}}</pre>
 
 <script>
 
 const drop = document.getElementById("drop")
-const fileInput = document.getElementById("file")
-const form = document.getElementById("form")
+const result = document.getElementById("result")
 
 drop.addEventListener("dragover", e=>{
     e.preventDefault()
 })
 
-drop.addEventListener("drop", e=>{
+drop.addEventListener("drop", async e=>{
+
     e.preventDefault()
 
-    fileInput.files = e.dataTransfer.files
-    form.submit()
+    const file = e.dataTransfer.files[0]
+
+    const formData = new FormData()
+    formData.append("file", file)
+
+    result.textContent = "読み込み中..."
+
+    const res = await fetch("/",{
+        method:"POST",
+        body:formData
+    })
+
+    const html = await res.text()
+
+    document.open()
+    document.write(html)
+    document.close()
+
 })
 
 </script>

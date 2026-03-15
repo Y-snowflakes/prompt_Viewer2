@@ -13,7 +13,7 @@ def read_prompt(file):
 
         im = Image.open(file)
 
-        # StableDiffusion PNG
+        # Stable Diffusion PNG
         if "parameters" in im.info:
             return im.info["parameters"]
 
@@ -31,10 +31,10 @@ def read_prompt(file):
             if comment:
                 return piexif.helper.UserComment.load(comment)
 
-        # 何も無い場合
         return str(im.info)
 
     except Exception as e:
+
         return f"Error: {e}"
 
 
@@ -45,10 +45,17 @@ def index():
 
     if request.method == "POST":
 
-        file = request.files.get("file")
+        if "file" not in request.files:
+            return "No file uploaded"
 
-        if file:
-            text = read_prompt(file)
+        file = request.files["file"]
+
+        if file.filename == "":
+            return "Empty file"
+
+        text = read_prompt(file)
+
+        return render_template("index.html", text=text)
 
     return render_template("index.html", text=text)
 

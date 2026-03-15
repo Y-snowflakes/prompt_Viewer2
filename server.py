@@ -9,46 +9,52 @@ app = Flask(__name__)
 
 def read_prompt(file):
 
-    im = Image.open(file)
+    try:
 
-    if "parameters" in im.info:
-        return im.info["parameters"]
+        im = Image.open(file)
 
-    exif = im.info.get("exif")
+        # StableDiffusion PNG
+        if "parameters" in im.info:
+            return im.info["parameters"]
 
-    if exif:
+        # EXIF
+        exif = im.info.get("exif")
 
-        exif_dict = piexif.load(exif)
+        if exif:
 
-        comment = exif_dict["Exif"].get(
-            piexif.ExifIFD.UserComment
-        )
+            exif_dict = piexif.load(exif)
 
-        if comment:
-            return piexif.helper.UserComment.load(comment)
+            comment = exif_dict["Exif"].get(
+                piexif.ExifIFD.UserComment
+            )
 
-    return ""
+            if comment:
+                return piexif.helper.UserComment.load(comment)
+
+        # 何も無い場合
+        return str(im.info)
+
+    except Exception as e:
+        return f"Error: {e}"
 
 
-@app.route("/", methods=["GET","POST"])
+@app.route("/", methods=["GET", "POST"])
 def index():
 
     text = ""
 
     if request.method == "POST":
 
-        file = request.files["file"]
+        file = request.files.get("file")
 
-        text = read_prompt(file)
+        if file:
+            text = read_prompt(file)
 
-    return render_template(
-        "index.html",
-        text=text
-    )
+    return render_template("index.html", text=text)
 
 
 if __name__ == "__main__":
 
-    port = int(os.environ.get("PORT",10000))
+    port = int(os.environ.get("PORT", 10000))
 
-    app.run(host="0.0.0.0",port=port)
+    app.run(host="0.0.0.0", port=port)

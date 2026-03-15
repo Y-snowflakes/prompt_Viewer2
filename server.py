@@ -7,58 +7,38 @@ import piexif.helper
 app = Flask(__name__)
 
 def read_prompt(file):
-    """
-    Stable Diffusion系のPNGからプロンプト/パラメータを読み取る
-    優先順位:
-    1. Pillowのim.info["parameters"] ← A1111の9割以上がここ
-    2. ExifのUserComment ← 一部のツール/再保存画像
-    3. 生のim.info全体（デバッグ用）
-    """
     try:
-        # Image.openはファイルポインタを消費するので、seek(0)するかbytesで扱う
-        # Flaskのrequest.filesはstreamなので、readしてBytesIOにするのが安全
-        file.seek(0)  # ← 重要: 複数回読み込む可能性があるので先頭に戻す
+        file.seek(0)  # FlaskのUploadedFileはポインタが進むので必須
         im = Image.open(file)
 
-        # 1. A1111 / WebUI標準の場所（これが最優先）
+        # 1. A1111標準（これが最優先・文字化けしにくい）
         if "parameters" in im.info:
             params = im.info["parameters"].strip()
             if params:
                 return params
 
-        # 2. Exif UserComment（ComfyUI一部やNovelAIなど）
-        exif_data = im.info.get("exif")
-        if exif_data:
+        # 2. Exif UserComment（piexifヘルパーで安全にデコード）
+        exif = im.info.get("exif")
+        if exif:
             try:
-                exif_dict = piexif.load(exif_data)
-                user_comment_tag = piexif.ExifIFD.UserComment
-                user_comment = exif_dict.get("Exif", {}).get(user_comment_tag)
-                if user_comment:
-                    # piexifのヘルパーでデコード（ASCII/UNICODE対応）
-                    try:
-                        decoded = piexif.helper.UserComment.load(user_comment)
-                        if decoded.strip():
-                            return decoded.strip()
-                    except:
-                        # フォールバック: 生バイトをUTF-8で無理やり
-                        try:
-                            return user_comment.decode('utf-8', errors='replace').strip()
-                        except:
-                            return "[Unknown encoding in UserComment]"
+                exif_dict = piexif.load(exif)
+                comment = exif_dict["Exif"].get(piexif.ExifIFD.UserComment)
+                if comment:
+                    # piexifの専用デコーダーを使う → 文字化けしにくい
+                    return piexif.helper.UserComment.load(comment).strip()
+            except:
+                pass  # Exif壊れても無視
 
-            except Exception as exif_err:
-                # Exif壊れても無視して次へ
-                pass
-
-        # 3. 何も取れなかったらraw info全部出す（デバッグに便利）
+        # 3. フォールバック（raw info）
         if im.info:
-            raw_info = "\n".join(f"{k}: {v}" for k, v in im.info.items())
-            return f"No standard prompt found.\nRaw PNG info:\n{raw_info}"
+            return "No standard metadata.\nRaw info:\n" + "\n".join(
+                f"{k}: {v}" for k, v in im.info.items()
+            )
 
-        return "No metadata found in this image."
+        return "No metadata found"
 
     except Exception as e:
-        return f"Error reading image: {str(e)}"
+        return f"Error: {str(e)}"
 
 
 @app.route("/", methods=["GET", "POST"])

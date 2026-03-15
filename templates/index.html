@@ -133,13 +133,11 @@ const dropzone = document.getElementById("dropzone")
 
 /* リセット */
 
-function resetViewer(){
-
-gallery.innerHTML=""
-document.getElementById("prompt").textContent=""
-document.getElementById("negative").textContent=""
-document.getElementById("other").textContent=""
-
+function resetViewer() {
+    gallery.innerHTML = "";                     // ← これが効くはず（変数が外で定義済みなら）
+    document.getElementById("prompt").textContent = "";
+    document.getElementById("negative").textContent = "";
+    document.getElementById("other").textContent = "";
 }
 
 /* フォルダ読み込み */
@@ -347,6 +345,8 @@ if(data["Model"]) out += "Model   : " + data["Model"] + "\n"
 return out
 
 }
+
+window.resetViewer = resetViewer;
 
 </script>
 

@@ -8,38 +8,37 @@ app = Flask(__name__)
 
 def read_prompt(path):
     try:
-        with Image.open(path) as im:  # withで自動close、安全
-            # WEBP/PNG/JPG共通でこれが一番多い（A1111標準）
+        with Image.open(path) as im:  # ← with文で自動close（推奨）
+            # A1111標準のparameters（PNG/WEBP共通でこれが9割）
             if "parameters" in im.info:
                 params = im.info["parameters"].strip()
-                if params:
+                if params:  # 空文字列回避
                     return params
 
-            # Exif UserCommentのフォールバック（一部の再保存WEBPなど）
+            # Exif UserComment（フォールバック）
             exif = im.info.get("exif")
             if exif:
                 try:
                     exif_dict = piexif.load(exif)
-                    comment = exif_dict["Exif"].get(piexif.ExifIFD.UserComment)
+                    comment = exif_dict.get("Exif", {}).get(piexif.ExifIFD.UserComment)
                     if comment:
-                        # piexifヘルパーでデコード（UTF-8/ASCII対応）
                         decoded = piexif.helper.UserComment.load(comment)
                         if decoded.strip():
                             return decoded.strip()
                 except Exception:
                     pass  # Exif壊れても無視
 
-            # 何も取れなかった場合のデバッグ情報
+            # デバッグ用：raw infoを少し出す（問題診断に便利）
             if im.info:
-                raw = "\n".join(f"{k}: {v[:100]}..." for k, v in im.info.items())  # 長すぎ防止
-                return f"No parameters found.\nRaw info (partial):\n{raw}"
+                raw_lines = [f"{k}: {v[:100]}..." for k, v in im.info.items() if v]
+                return "No 'parameters' found.\nPartial raw info:\n" + "\n".join(raw_lines)
 
-            return "No metadata found"
+            return "No metadata"
 
     except Exception as e:
-        return f"Error reading {os.path.basename(path)}: {str(e)}"
+        return f"Read error: {str(e)}"
     
-    
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     results = []

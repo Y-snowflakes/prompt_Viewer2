@@ -158,17 +158,46 @@ loadFiles(e.target.files)
 
 /* ドロップ */
 
-dropzone.addEventListener("dragover",e=>{
+dropzone.addEventListener("drop", async (e)=>{
 
 e.preventDefault()
+
+let items = e.dataTransfer.items
+
+let files = []
+
+for(let item of items){
+
+let entry = item.webkitGetAsEntry()
+
+if(entry.isFile){
+
+item.getAsFile && files.push(item.getAsFile())
+
+}
+
+if(entry.isDirectory){
+
+let reader = entry.createReader()
+
+reader.readEntries(entries=>{
+
+for(let ent of entries){
+
+ent.file(file=>{
+files.push(file)
+loadFiles(files)
+})
+
+}
 
 })
 
-dropzone.addEventListener("drop",e=>{
+}
 
-e.preventDefault()
+}
 
-loadFiles(e.dataTransfer.files)
+loadFiles(files)
 
 })
 
@@ -204,29 +233,46 @@ const reader = new FileReader()
 
 reader.onload = function(e){
 
-fetch(e.target.result)
-.then(r=>r.arrayBuffer())
-.then(buffer=>{
+const buffer = e.target.result
+const bytes = new Uint8Array(buffer)
 
-let text = new TextDecoder().decode(buffer)
+let text = ""
 
-let pos = text.indexOf("parameters")
+for(let i=0;i<bytes.length-10;i++){
 
-if(pos!=-1){
+if(
+bytes[i]==112 && // p
+bytes[i+1]==97 && // a
+bytes[i+2]==114 && // r
+bytes[i+3]==97 && // a
+bytes[i+4]==109 && // m
+bytes[i+5]==101 && // e
+bytes[i+6]==116 && // t
+bytes[i+7]==101 && // e
+bytes[i+8]==114 && // r
+bytes[i+9]==115    // s
+){
 
-promptBox.textContent = text.slice(pos,pos+3000)
+let start=i+11
+let end=start+2000
 
-}else{
+text = new TextDecoder().decode(bytes.slice(start,end))
 
+break
+
+}
+
+}
+
+if(text===""){
 promptBox.textContent="No metadata"
+}else{
+promptBox.textContent=text
+}
 
 }
 
-})
-
-}
-
-reader.readAsDataURL(file)
+reader.readAsArrayBuffer(file)
 
 }
 

@@ -13,52 +13,91 @@ color:white;
 font-family:sans-serif;
 }
 
+/* 上バー */
+
 #topbar{
-padding:10px;
+height:50px;
 background:#222;
+display:flex;
+align-items:center;
+padding:0 10px;
+gap:10px;
 }
 
-#viewer{
+/* メインレイアウト */
+
+#main{
 display:flex;
-height:90vh;
+height:calc(100vh - 50px);
 }
+
+/* 左ギャラリー */
 
 #gallery{
+
 width:40%;
+background:#151515;
 overflow:auto;
+padding:10px;
+
 display:grid;
 grid-template-columns:repeat(auto-fill,120px);
 gap:10px;
-padding:10px;
+
 }
 
+/* サムネ */
+
 #gallery img{
+
 width:120px;
 cursor:pointer;
 border-radius:6px;
+transition:0.15s;
+
 }
+
+#gallery img:hover{
+
+transform:scale(1.05);
+
+}
+
+/* 右パネル */
 
 #info{
+
 width:60%;
+background:#1e1e1e;
 padding:20px;
 overflow:auto;
-background:#181818;
+
 }
+
+/* ドロップ */
 
 #dropzone{
-border:2px dashed #666;
-padding:40px;
-margin:10px;
+
+border:2px dashed #777;
+padding:30px;
+margin-bottom:20px;
 text-align:center;
+
 }
 
+/* prompt */
+
 pre{
+
 white-space:pre-wrap;
+font-size:14px;
+
 }
 
 button{
-padding:8px 20px;
-margin-left:10px;
+
+padding:6px 14px;
+
 }
 
 </style>
@@ -75,17 +114,17 @@ margin-left:10px;
 
 </div>
 
+<div id="main">
+
+<div id="gallery"></div>
+
+<div id="info">
+
 <div id="dropzone">
 
 フォルダ / PNG をドラッグ
 
 </div>
-
-<div id="viewer">
-
-<div id="gallery"></div>
-
-<div id="info">
 
 <h3>Prompt</h3>
 
@@ -97,12 +136,27 @@ margin-left:10px;
 
 <script>
 
-const dropzone = document.getElementById("dropzone")
 const gallery = document.getElementById("gallery")
 const promptBox = document.getElementById("prompt")
 const fileInput = document.getElementById("fileInput")
+const dropzone = document.getElementById("dropzone")
 
-let images = []
+function resetViewer(){
+
+gallery.innerHTML=""
+promptBox.textContent=""
+
+}
+
+/* フォルダ選択 */
+
+fileInput.addEventListener("change",e=>{
+
+loadFiles(e.target.files)
+
+})
+
+/* ドロップ */
 
 dropzone.addEventListener("dragover",e=>{
 
@@ -118,19 +172,7 @@ loadFiles(e.dataTransfer.files)
 
 })
 
-fileInput.addEventListener("change",e=>{
-
-loadFiles(e.target.files)
-
-})
-
-function resetViewer(){
-
-gallery.innerHTML=""
-promptBox.textContent=""
-images=[]
-
-}
+/* 読み込み */
 
 function loadFiles(files){
 
@@ -146,7 +188,7 @@ let img = document.createElement("img")
 
 img.src = url
 
-img.onclick = ()=>readMetadata(file)
+img.onclick = ()=>readPrompt(file)
 
 gallery.appendChild(img)
 
@@ -154,38 +196,25 @@ gallery.appendChild(img)
 
 }
 
-function readMetadata(file){
+/* メタデータ */
+
+function readPrompt(file){
 
 const reader = new FileReader()
 
 reader.onload = function(e){
 
-const img = new Image()
-
-img.onload = function(){
-
-const canvas = document.createElement("canvas")
-
-const ctx = canvas.getContext("2d")
-
-canvas.width = img.width
-canvas.height = img.height
-
-ctx.drawImage(img,0,0)
-
 fetch(e.target.result)
-.then(res=>res.arrayBuffer())
+.then(r=>r.arrayBuffer())
 .then(buffer=>{
 
-const decoder = new TextDecoder()
+let text = new TextDecoder().decode(buffer)
 
-let text = decoder.decode(buffer)
+let pos = text.indexOf("parameters")
 
-let start = text.indexOf("parameters")
+if(pos!=-1){
 
-if(start!=-1){
-
-promptBox.textContent = text.slice(start,start+2000)
+promptBox.textContent = text.slice(pos,pos+3000)
 
 }else{
 
@@ -194,10 +223,6 @@ promptBox.textContent="No metadata"
 }
 
 })
-
-}
-
-img.src = e.target.result
 
 }
 

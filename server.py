@@ -8,12 +8,12 @@ app = Flask(__name__)
 
 def read_prompt(path):
     try:
-        with Image.open(path) as im:  # withで安全にclose
-            # 1. PNG/A1111標準のparameters（これが最優先）
+        with Image.open(path) as im:
+            # 1. 標準parameters（PNGで効く、WEBPでも稀に入る）
             if "parameters" in im.info and im.info["parameters"].strip():
                 return im.info["parameters"].strip()
 
-            # 2. Exif UserComment（一部のWEBP/JPGでここ）
+            # 2. Exif UserComment（標準フォールバック）
             exif = im.info.get("exif")
             if exif:
                 try:
@@ -26,39 +26,42 @@ def read_prompt(path):
                 except Exception:
                     pass
 
-            # 3. WEBP特有の追加チェック（XMPや他のinfoキー）← これが効くことが多い
-            # Stable Diffusion WEBPでたまに "xmp" や "XML:com.adobe.xmp" に入る
-            for key in im.info:
-                val = im.info[key]
-                if isinstance(val, str) and ("parameters" in val.lower() or "Negative prompt:" in val):
-                    return val.strip()
-                if isinstance(val, bytes):
+            # 3. WEBP/JPGでメタデータが他のキーに入っている場合を総スキャン
+            #    "parameters", "Negative prompt:", "Steps:" などのキーワードで探す
+            candidate = ""
+            for key, value in im.info.items():
+                if isinstance(value, str):
+                    val_str = value.strip()
+                    if any(kw in val_str for kw in ["parameters", "Negative prompt:", "Steps:", "Seed:", "CFG scale:"]):
+                        if len(val_str) > len(candidate):  # 長い方を優先
+                            candidate = val_str
+                elif isinstance(value, bytes):
                     try:
-                        decoded_val = val.decode('utf-8', errors='ignore').strip()
-                        if "parameters" in decoded_val or "Negative prompt:" in decoded_val:
-                            return decoded_val
+                        val_decoded = value.decode('utf-8', errors='ignore').strip()
+                        if any(kw in val_decoded for kw in ["parameters", "Negative prompt:", "Steps:"]):
+                            if len(val_decoded) > len(candidate):
+                                candidate = val_decoded
                     except:
                         pass
 
-            # 4. デバッグ用：raw info全部出力（どのキーに入ってるか分かる）
-            if im.info:
-                raw_output = []
-                for k, v in im.info.items():
-                    if isinstance(v, bytes):
-                        try:
-                            preview = v.decode('utf-8', errors='ignore')[:200]
-                        except:
-                            preview = "[binary data]"
-                    else:
-                        preview = str(v)[:200]
-                    raw_output.append(f"{k}: {preview}")
-                return "No standard parameters found in WEBP/PNG.\nRaw im.info:\n" + "\n".join(raw_output)
+            if candidate:
+                return candidate
 
-            return "No metadata found"
+            # 4. 最終手段：raw info全部出力（これを見ればどこに入ってるか分かる！）
+            if im.info:
+                raw_lines = []
+                for k, v in im.info.items():
+                    preview = str(v)[:300] if isinstance(v, str) else "[binary or non-str data]"
+                    raw_lines.append(f"{k}: {preview}")
+                return "WEBP/PNG metadata found but no standard prompt.\nRaw im.info dump:\n" + "\n".join(raw_lines)
+
+            return "No metadata at all"
 
     except Exception as e:
-        return f"Error reading {os.path.basename(path)}: {str(e)}"    
+        return f"Error opening {os.path.basename(path)}: {str(e)}"
+    
 
+    
 @app.route("/", methods=["GET", "POST"])
 def index():
     results = []

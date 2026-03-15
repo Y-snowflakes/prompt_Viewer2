@@ -70,13 +70,14 @@ font-size:18px;
 
 /* プロンプト */
 
-#prompt{
-font-size:20px;
+#prompt,#negative,#other{
+font-size:18px;
 line-height:1.7;
 background:#000;
 padding:20px;
 border-radius:10px;
 white-space:pre-wrap;
+margin-bottom:20px;
 }
 
 button{
@@ -111,8 +112,13 @@ font-size:14px;
 </div>
 
 <h2>Prompt</h2>
-
 <div id="prompt"></div>
+
+<h2>Negative</h2>
+<div id="negative"></div>
+
+<h2>Other</h2>
+<div id="other"></div>
 
 </div>
 
@@ -198,7 +204,7 @@ reader.onload = function(e){
 const buffer = e.target.result
 const view = new DataView(buffer)
 
-let offset = 8   // PNGヘッダスキップ
+let offset = 8
 let prompt = ""
 
 while(offset < view.byteLength){
@@ -207,20 +213,18 @@ let length = view.getUint32(offset)
 offset += 4
 
 let type = ""
-
 for(let i=0;i<4;i++){
 type += String.fromCharCode(view.getUint8(offset+i))
 }
-
 offset += 4
-
-if(type === "tEXt"){
 
 let bytes = new Uint8Array(buffer, offset, length)
 
-let text = new TextDecoder("utf-8").decode(bytes)
+if(type === "tEXt" || type === "iTXt" || type === "zTXt"){
 
-if(text.startsWith("parameters")){
+let text = new TextDecoder("utf-8",{fatal:false}).decode(bytes)
+
+if(text.includes("parameters")){
 prompt = text.replace("parameters","").trim()
 break
 }
@@ -232,15 +236,66 @@ offset += length + 4
 }
 
 if(prompt){
-promptBox.textContent = prompt
+
+let data = parsePrompt(prompt)
+
+document.getElementById("prompt").textContent = data.prompt
+document.getElementById("negative").textContent = data.negative
+document.getElementById("other").textContent = data.other
+
 }else{
-promptBox.textContent = "メタデータなし"
+
+document.getElementById("prompt").textContent = "メタデータなし"
+
 }
 
 }
 
 reader.readAsArrayBuffer(file)
 
+}
+
+
+function parsePrompt(text){
+
+let prompt=""
+let negative=""
+let other=""
+
+let negIndex = text.indexOf("Negative prompt:")
+
+if(negIndex!=-1){
+
+prompt = text.slice(0,negIndex).trim()
+
+let rest = text.slice(negIndex + 16)
+
+let split = rest.split("\n\n")
+
+negative = split[0].trim()
+
+other = rest.slice(negative.length).trim()
+
+}else{
+
+prompt=text
+
+}
+
+return {prompt,negative,other}
+
+}
+
+if(prompt){
+
+let data=parsePrompt(prompt)
+
+document.getElementById("prompt").textContent=data.prompt
+document.getElementById("negative").textContent=data.negative
+document.getElementById("other").textContent=data.other
+
+}else{
+promptBox.textContent="メタデータなし"
 }
 
 </script>

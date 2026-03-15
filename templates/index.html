@@ -136,7 +136,9 @@ const dropzone = document.getElementById("dropzone")
 function resetViewer(){
 
 gallery.innerHTML=""
-promptBox.textContent=""
+document.getElementById("prompt").textContent=""
+document.getElementById("negative").textContent=""
+document.getElementById("other").textContent=""
 
 }
 
@@ -266,7 +268,6 @@ let negative=""
 let other=""
 
 let negIndex = text.indexOf("Negative prompt:")
-let stepsIndex = text.indexOf("Steps:")
 
 if(negIndex !== -1){
 
@@ -274,12 +275,12 @@ prompt = text.slice(0,negIndex).trim()
 
 let rest = text.slice(negIndex + "Negative prompt:".length)
 
+let stepsIndex = rest.indexOf("Steps:")
+
 if(stepsIndex !== -1){
 
-let negEnd = rest.indexOf("Steps:")
-
-negative = rest.slice(0,negEnd).trim()
-other = rest.slice(negEnd).trim()
+negative = rest.slice(0,stepsIndex).trim()
+other = rest.slice(stepsIndex).trim()
 
 }else{
 
@@ -287,7 +288,11 @@ negative = rest.trim()
 
 }
 
-}else if(stepsIndex !== -1){
+}else{
+
+let stepsIndex = text.indexOf("Steps:")
+
+if(stepsIndex !== -1){
 
 prompt = text.slice(0,stepsIndex).trim()
 other = text.slice(stepsIndex).trim()
@@ -298,10 +303,11 @@ prompt = text.trim()
 
 }
 
+}
+
 return {prompt,negative,other}
 
 }
-
 function parseOther(text){
 
 let data = {}

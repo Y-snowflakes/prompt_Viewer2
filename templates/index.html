@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>AI Prompt Viewer</title>
+<title>Prompt Viewer</title>
 
 <style>
 
@@ -16,92 +16,75 @@ font-family:sans-serif;
 /* 上バー */
 
 #topbar{
-height:50px;
 background:#222;
+padding:10px;
 display:flex;
-align-items:center;
-padding:0 10px;
 gap:10px;
+align-items:center;
 }
 
-/* メインレイアウト */
+/* メイン */
 
 #main{
 display:flex;
 height:calc(100vh - 50px);
 }
 
-/* 左ギャラリー */
+/* 左 */
 
 #gallery{
-
 width:40%;
 background:#151515;
 overflow:auto;
 padding:10px;
 
 display:grid;
-grid-template-columns:repeat(auto-fill,120px);
+grid-template-columns:repeat(auto-fill,140px);
 gap:10px;
-
 }
-
-/* サムネ */
 
 #gallery img{
-
-width:120px;
+width:140px;
+border-radius:8px;
 cursor:pointer;
-border-radius:6px;
-transition:0.15s;
-
 }
 
-#gallery img:hover{
-
-transform:scale(1.05);
-
-}
-
-/* 右パネル */
+/* 右 */
 
 #info{
-
 width:60%;
-background:#1e1e1e;
+background:#1c1c1c;
 padding:20px;
 overflow:auto;
-
 }
 
 /* ドロップ */
 
 #dropzone{
-
 border:2px dashed #777;
 padding:30px;
 margin-bottom:20px;
 text-align:center;
-
+font-size:18px;
 }
 
-/* prompt */
+/* プロンプト */
 
-pre{
-
+#prompt{
+font-size:18px;
+line-height:1.6;
 white-space:pre-wrap;
-font-size:14px;
-
+background:#000;
+padding:20px;
+border-radius:10px;
 }
 
 button{
-
-padding:6px 14px;
-
+padding:6px 16px;
+font-size:14px;
 }
 
 </style>
-
 </head>
 
 <body>
@@ -122,13 +105,14 @@ padding:6px 14px;
 
 <div id="dropzone">
 
-フォルダ / PNG をドラッグ
+フォルダ / 画像 をドラッグ  
+(PNG / WEBP / JPG)
 
 </div>
 
-<h3>Prompt</h3>
+<h2>Prompt</h2>
 
-<pre id="prompt"></pre>
+<div id="prompt"></div>
 
 </div>
 
@@ -141,6 +125,8 @@ const promptBox = document.getElementById("prompt")
 const fileInput = document.getElementById("fileInput")
 const dropzone = document.getElementById("dropzone")
 
+/* リセット */
+
 function resetViewer(){
 
 gallery.innerHTML=""
@@ -148,7 +134,7 @@ promptBox.textContent=""
 
 }
 
-/* フォルダ選択 */
+/* フォルダ読み込み */
 
 fileInput.addEventListener("change",e=>{
 
@@ -156,52 +142,21 @@ loadFiles(e.target.files)
 
 })
 
-/* ドロップ */
+/* ドラッグ */
 
-dropzone.addEventListener("drop", async (e)=>{
+dropzone.addEventListener("dragover",e=>{
+e.preventDefault()
+})
+
+dropzone.addEventListener("drop",e=>{
 
 e.preventDefault()
 
-let items = e.dataTransfer.items
-
-let files = []
-
-for(let item of items){
-
-let entry = item.webkitGetAsEntry()
-
-if(entry.isFile){
-
-item.getAsFile && files.push(item.getAsFile())
-
-}
-
-if(entry.isDirectory){
-
-let reader = entry.createReader()
-
-reader.readEntries(entries=>{
-
-for(let ent of entries){
-
-ent.file(file=>{
-files.push(file)
-loadFiles(files)
-})
-
-}
+loadFiles(e.dataTransfer.files)
 
 })
 
-}
-
-}
-
-loadFiles(files)
-
-})
-
-/* 読み込み */
+/* ファイル読み込み */
 
 function loadFiles(files){
 
@@ -209,15 +164,22 @@ gallery.innerHTML=""
 
 for(let file of files){
 
-if(!file.name.toLowerCase().endsWith(".png")) continue
+let name=file.name.toLowerCase()
 
-let url = URL.createObjectURL(file)
+if(
+!name.endsWith(".png") &&
+!name.endsWith(".webp") &&
+!name.endsWith(".jpg") &&
+!name.endsWith(".jpeg")
+) continue
 
-let img = document.createElement("img")
+let url=URL.createObjectURL(file)
 
-img.src = url
+let img=document.createElement("img")
 
-img.onclick = ()=>readPrompt(file)
+img.src=url
+
+img.onclick=()=>readPrompt(file)
 
 gallery.appendChild(img)
 
@@ -225,49 +187,34 @@ gallery.appendChild(img)
 
 }
 
-/* メタデータ */
+/* プロンプト抽出 */
 
 function readPrompt(file){
 
-const reader = new FileReader()
+if(!file.name.toLowerCase().endsWith(".png")){
 
-reader.onload = function(e){
+promptBox.textContent="PNG以外はメタデータ取得できない場合があります"
 
-const buffer = e.target.result
-const bytes = new Uint8Array(buffer)
-
-let text = ""
-
-for(let i=0;i<bytes.length-10;i++){
-
-if(
-bytes[i]==112 && // p
-bytes[i+1]==97 && // a
-bytes[i+2]==114 && // r
-bytes[i+3]==97 && // a
-bytes[i+4]==109 && // m
-bytes[i+5]==101 && // e
-bytes[i+6]==116 && // t
-bytes[i+7]==101 && // e
-bytes[i+8]==114 && // r
-bytes[i+9]==115    // s
-){
-
-let start=i+11
-let end=start+2000
-
-text = new TextDecoder().decode(bytes.slice(start,end))
-
-break
+return
 
 }
 
-}
+const reader=new FileReader()
 
-if(text===""){
-promptBox.textContent="No metadata"
+reader.onload=function(e){
+
+let text=new TextDecoder().decode(e.target.result)
+
+let pos=text.indexOf("parameters")
+
+if(pos!=-1){
+
+promptBox.textContent=text.slice(pos,pos+3000)
+
 }else{
-promptBox.textContent=text
+
+promptBox.textContent="メタデータなし"
+
 }
 
 }

@@ -8,14 +8,12 @@ app = Flask(__name__)
 
 def read_prompt(path):
     try:
-        with Image.open(path) as im:  # ← with文で自動close（推奨）
-            # A1111標準のparameters（PNG/WEBP共通でこれが9割）
-            if "parameters" in im.info:
-                params = im.info["parameters"].strip()
-                if params:  # 空文字列回避
-                    return params
+        with Image.open(path) as im:  # withで安全にclose
+            # 1. PNG/A1111標準のparameters（これが最優先）
+            if "parameters" in im.info and im.info["parameters"].strip():
+                return im.info["parameters"].strip()
 
-            # Exif UserComment（フォールバック）
+            # 2. Exif UserComment（一部のWEBP/JPGでここ）
             exif = im.info.get("exif")
             if exif:
                 try:
@@ -26,18 +24,40 @@ def read_prompt(path):
                         if decoded.strip():
                             return decoded.strip()
                 except Exception:
-                    pass  # Exif壊れても無視
+                    pass
 
-            # デバッグ用：raw infoを少し出す（問題診断に便利）
+            # 3. WEBP特有の追加チェック（XMPや他のinfoキー）← これが効くことが多い
+            # Stable Diffusion WEBPでたまに "xmp" や "XML:com.adobe.xmp" に入る
+            for key in im.info:
+                val = im.info[key]
+                if isinstance(val, str) and ("parameters" in val.lower() or "Negative prompt:" in val):
+                    return val.strip()
+                if isinstance(val, bytes):
+                    try:
+                        decoded_val = val.decode('utf-8', errors='ignore').strip()
+                        if "parameters" in decoded_val or "Negative prompt:" in decoded_val:
+                            return decoded_val
+                    except:
+                        pass
+
+            # 4. デバッグ用：raw info全部出力（どのキーに入ってるか分かる）
             if im.info:
-                raw_lines = [f"{k}: {v[:100]}..." for k, v in im.info.items() if v]
-                return "No 'parameters' found.\nPartial raw info:\n" + "\n".join(raw_lines)
+                raw_output = []
+                for k, v in im.info.items():
+                    if isinstance(v, bytes):
+                        try:
+                            preview = v.decode('utf-8', errors='ignore')[:200]
+                        except:
+                            preview = "[binary data]"
+                    else:
+                        preview = str(v)[:200]
+                    raw_output.append(f"{k}: {preview}")
+                return "No standard parameters found in WEBP/PNG.\nRaw im.info:\n" + "\n".join(raw_output)
 
-            return "No metadata"
+            return "No metadata found"
 
     except Exception as e:
-        return f"Read error: {str(e)}"
-    
+        return f"Error reading {os.path.basename(path)}: {str(e)}"    
 
 @app.route("/", methods=["GET", "POST"])
 def index():

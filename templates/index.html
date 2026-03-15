@@ -3,21 +3,75 @@
 <head>
 <meta charset="utf-8">
 <title>PNG Prompt Viewer</title>
+
+<style>
+
+body{
+background:#111;
+color:white;
+font-family:sans-serif;
+text-align:center;
+}
+
+#drop{
+border:2px dashed #888;
+padding:40px;
+margin:40px;
+}
+
+pre{
+text-align:left;
+white-space:pre-wrap;
+background:#222;
+padding:20px;
+margin:40px;
+}
+
+</style>
 </head>
 
 <body>
 
-<h2>画像をドラッグしてください</h2>
+<h2>PNG画像をドラッグしてください</h2>
 
-<form method="POST" enctype="multipart/form-data">
+<div id="drop">ここに画像をドロップ</div>
 
-<input type="file" name="file">
+<pre id="result">{{text}}</pre>
 
-<button type="submit">表示</button>
+<script>
 
-</form>
+const drop = document.getElementById("drop")
+const result = document.getElementById("result")
 
-<pre>{{text}}</pre>
+drop.addEventListener("dragover", e=>{
+    e.preventDefault()
+})
+
+drop.addEventListener("drop", async e=>{
+
+    e.preventDefault()
+
+    const file = e.dataTransfer.files[0]
+
+    const formData = new FormData()
+    formData.append("file", file)
+
+    result.textContent = "読み込み中..."
+
+    const res = await fetch("/",{
+        method:"POST",
+        body:formData
+    })
+
+    const html = await res.text()
+
+    document.open()
+    document.write(html)
+    document.close()
+
+})
+
+</script>
 
 </body>
 </html>

@@ -13,11 +13,9 @@ def read_prompt(file):
 
         im = Image.open(file)
 
-        # Stable Diffusion PNG
         if "parameters" in im.info:
             return im.info["parameters"]
 
-        # EXIF
         exif = im.info.get("exif")
 
         if exif:
@@ -41,23 +39,24 @@ def read_prompt(file):
 @app.route("/", methods=["GET", "POST"])
 def index():
 
-    text = ""
+    results = []
 
     if request.method == "POST":
 
-        if "file" not in request.files:
-            return "No file uploaded"
+        files = request.files.getlist("files")
 
-        file = request.files["file"]
+        for f in files:
 
-        if file.filename == "":
-            return "Empty file"
+            if f.filename:
 
-        text = read_prompt(file)
+                text = read_prompt(f)
 
-        return render_template("index.html", text=text)
+                results.append({
+                    "name": f.filename,
+                    "text": text
+                })
 
-    return render_template("index.html", text=text)
+    return render_template("index.html", results=results)
 
 
 if __name__ == "__main__":

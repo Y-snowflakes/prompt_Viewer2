@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>PNG Prompt Viewer</title>
+<title>PNG Metadata Viewer</title>
 
 <style>
 
@@ -15,33 +15,36 @@ text-align:center;
 
 #drop{
 border:2px dashed #888;
-padding:40px;
+padding:50px;
 margin:40px;
+}
+
+.item{
+background:#222;
+padding:10px;
+margin:20px;
+text-align:left;
 }
 
 pre{
-text-align:left;
 white-space:pre-wrap;
-background:#222;
-padding:20px;
-margin:40px;
 }
 
 </style>
-</head>
 
+</head>
 <body>
 
-<h2>PNG画像をドラッグしてください</h2>
+<h2>フォルダまたは画像をドラッグしてください</h2>
 
-<div id="drop">ここに画像をドロップ</div>
+<div id="drop">ここにドロップ</div>
 
-<pre id="result">{{text}}</pre>
+<div id="list"></div>
 
 <script>
 
 const drop = document.getElementById("drop")
-const result = document.getElementById("result")
+const list = document.getElementById("list")
 
 drop.addEventListener("dragover", e=>{
     e.preventDefault()
@@ -51,12 +54,16 @@ drop.addEventListener("drop", async e=>{
 
     e.preventDefault()
 
-    const file = e.dataTransfer.files[0]
+    const files = e.dataTransfer.files
 
     const formData = new FormData()
-    formData.append("file", file)
 
-    result.textContent = "読み込み中..."
+    for(let f of files){
+
+        formData.append("files", f)
+    }
+
+    list.innerHTML = "解析中..."
 
     const res = await fetch("/",{
         method:"POST",
@@ -72,6 +79,18 @@ drop.addEventListener("drop", async e=>{
 })
 
 </script>
+
+{% for r in results %}
+
+<div class="item">
+
+<b>{{r.name}}</b>
+
+<pre>{{r.text}}</pre>
+
+</div>
+
+{% endfor %}
 
 </body>
 </html>

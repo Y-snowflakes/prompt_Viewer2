@@ -1,59 +1,64 @@
 <!DOCTYPE html>
 <html>
 <head>
-
 <meta charset="utf-8">
-
-<title>PNG Metadata Viewer</title>
+<title>AI Prompt Viewer</title>
 
 <style>
 
 body{
+margin:0;
 background:#111;
 color:white;
 font-family:sans-serif;
-margin:0;
-padding:0;
+}
+
+#topbar{
+padding:10px;
+background:#222;
+}
+
+#viewer{
+display:flex;
+height:90vh;
+}
+
+#gallery{
+width:40%;
+overflow:auto;
+display:grid;
+grid-template-columns:repeat(auto-fill,120px);
+gap:10px;
+padding:10px;
+}
+
+#gallery img{
+width:120px;
+cursor:pointer;
+border-radius:6px;
+}
+
+#info{
+width:60%;
+padding:20px;
+overflow:auto;
+background:#181818;
 }
 
 #dropzone{
-
-border:3px dashed #888;
-border-radius:20px;
-margin:40px;
-padding:80px;
+border:2px dashed #666;
+padding:40px;
+margin:10px;
 text-align:center;
-font-size:24px;
-transition:0.2s;
-
-}
-
-#dropzone.hover{
-
-border-color:#00ffff;
-background:#1a1a1a;
-
-}
-
-#result{
-
-padding:20px;
-
-}
-
-.item{
-
-background:#222;
-margin:20px;
-padding:15px;
-border-radius:10px;
-
 }
 
 pre{
-
 white-space:pre-wrap;
+}
 
+button{
+padding:8px 20px;
+margin-left:10px;
 }
 
 </style>
@@ -62,83 +67,141 @@ white-space:pre-wrap;
 
 <body>
 
-<div id="dropzone">
-
-フォルダまたはPNGをここにドラッグしてください  
-<br><br>
-または  
-<br><br>
+<div id="topbar">
 
 <input type="file" id="fileInput" multiple webkitdirectory>
 
+<button onclick="resetViewer()">リセット</button>
+
 </div>
 
-<div id="result"></div>
+<div id="dropzone">
+
+フォルダ / PNG をドラッグ
+
+</div>
+
+<div id="viewer">
+
+<div id="gallery"></div>
+
+<div id="info">
+
+<h3>Prompt</h3>
+
+<pre id="prompt"></pre>
+
+</div>
+
+</div>
 
 <script>
 
 const dropzone = document.getElementById("dropzone")
-const result = document.getElementById("result")
+const gallery = document.getElementById("gallery")
+const promptBox = document.getElementById("prompt")
 const fileInput = document.getElementById("fileInput")
 
-// ドラッグオーバー
-dropzone.addEventListener("dragover",(e)=>{
+let images = []
 
-e.preventDefault()
-dropzone.classList.add("hover")
-
-})
-
-// ドラッグ離脱
-dropzone.addEventListener("dragleave",()=>{
-
-dropzone.classList.remove("hover")
-
-})
-
-// ドロップ
-dropzone.addEventListener("drop",(e)=>{
+dropzone.addEventListener("dragover",e=>{
 
 e.preventDefault()
 
-dropzone.classList.remove("hover")
+})
 
-handleFiles(e.dataTransfer.files)
+dropzone.addEventListener("drop",e=>{
+
+e.preventDefault()
+
+loadFiles(e.dataTransfer.files)
 
 })
 
-// ファイル選択
-fileInput.addEventListener("change",(e)=>{
+fileInput.addEventListener("change",e=>{
 
-handleFiles(e.target.files)
+loadFiles(e.target.files)
 
 })
 
+function resetViewer(){
 
-async function handleFiles(files){
-
-result.innerHTML = "アップロード中..."
-
-let formData = new FormData()
-
-for(let file of files){
-
-formData.append("files",file)
+gallery.innerHTML=""
+promptBox.textContent=""
+images=[]
 
 }
 
-const res = await fetch("/",{
+function loadFiles(files){
 
-method:"POST",
-body:formData
+gallery.innerHTML=""
+
+for(let file of files){
+
+if(!file.name.toLowerCase().endsWith(".png")) continue
+
+let url = URL.createObjectURL(file)
+
+let img = document.createElement("img")
+
+img.src = url
+
+img.onclick = ()=>readMetadata(file)
+
+gallery.appendChild(img)
+
+}
+
+}
+
+function readMetadata(file){
+
+const reader = new FileReader()
+
+reader.onload = function(e){
+
+const img = new Image()
+
+img.onload = function(){
+
+const canvas = document.createElement("canvas")
+
+const ctx = canvas.getContext("2d")
+
+canvas.width = img.width
+canvas.height = img.height
+
+ctx.drawImage(img,0,0)
+
+fetch(e.target.result)
+.then(res=>res.arrayBuffer())
+.then(buffer=>{
+
+const decoder = new TextDecoder()
+
+let text = decoder.decode(buffer)
+
+let start = text.indexOf("parameters")
+
+if(start!=-1){
+
+promptBox.textContent = text.slice(start,start+2000)
+
+}else{
+
+promptBox.textContent="No metadata"
+
+}
 
 })
 
-const html = await res.text()
+}
 
-document.open()
-document.write(html)
-document.close()
+img.src = e.target.result
+
+}
+
+reader.readAsDataURL(file)
 
 }
 

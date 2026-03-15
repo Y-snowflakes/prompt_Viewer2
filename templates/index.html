@@ -241,7 +241,10 @@ let data = parsePrompt(prompt)
 
 document.getElementById("prompt").textContent = data.prompt
 document.getElementById("negative").textContent = data.negative
-document.getElementById("other").textContent = data.other
+
+let otherData = parseOther(data.other)
+
+document.getElementById("other").textContent = formatOther(otherData)
 
 }else{
 
@@ -263,22 +266,35 @@ let negative=""
 let other=""
 
 let negIndex = text.indexOf("Negative prompt:")
+let stepsIndex = text.indexOf("Steps:")
 
-if(negIndex!=-1){
+if(negIndex !== -1){
 
 prompt = text.slice(0,negIndex).trim()
 
-let rest = text.slice(negIndex + 16)
+let rest = text.slice(negIndex + "Negative prompt:".length)
 
-let split = rest.split("\n\n")
+if(stepsIndex !== -1){
 
-negative = split[0].trim()
+let negEnd = rest.indexOf("Steps:")
 
-other = rest.slice(negative.length).trim()
+negative = rest.slice(0,negEnd).trim()
+other = rest.slice(negEnd).trim()
 
 }else{
 
-prompt=text
+negative = rest.trim()
+
+}
+
+}else if(stepsIndex !== -1){
+
+prompt = text.slice(0,stepsIndex).trim()
+other = text.slice(stepsIndex).trim()
+
+}else{
+
+prompt = text.trim()
 
 }
 
@@ -286,16 +302,44 @@ return {prompt,negative,other}
 
 }
 
-if(prompt){
+function parseOther(text){
 
-let data=parsePrompt(prompt)
+let data = {}
 
-document.getElementById("prompt").textContent=data.prompt
-document.getElementById("negative").textContent=data.negative
-document.getElementById("other").textContent=data.other
+let parts = text.split(",")
 
-}else{
-promptBox.textContent="メタデータなし"
+for(let part of parts){
+
+let p = part.trim()
+
+if(p.includes(":")){
+
+let key = p.split(":")[0].trim()
+let value = p.split(":").slice(1).join(":").trim()
+
+data[key] = value
+
+}
+
+}
+
+return data
+
+}
+
+function formatOther(data){
+
+let out = ""
+
+if(data["Sampler"]) out += "Sampler : " + data["Sampler"] + "\n"
+if(data["Steps"]) out += "Steps   : " + data["Steps"] + "\n"
+if(data["CFG scale"]) out += "CFG     : " + data["CFG scale"] + "\n"
+if(data["Seed"]) out += "Seed    : " + data["Seed"] + "\n"
+if(data["Size"]) out += "Size    : " + data["Size"] + "\n"
+if(data["Model"]) out += "Model   : " + data["Model"] + "\n"
+
+return out
+
 }
 
 </script>

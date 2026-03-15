@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
+
 <meta charset="utf-8">
+
 <title>PNG Metadata Viewer</title>
 
 <style>
@@ -10,87 +12,137 @@ body{
 background:#111;
 color:white;
 font-family:sans-serif;
-text-align:center;
+margin:0;
+padding:0;
 }
 
-#drop{
-border:2px dashed #888;
-padding:50px;
+#dropzone{
+
+border:3px dashed #888;
+border-radius:20px;
 margin:40px;
+padding:80px;
+text-align:center;
+font-size:24px;
+transition:0.2s;
+
+}
+
+#dropzone.hover{
+
+border-color:#00ffff;
+background:#1a1a1a;
+
+}
+
+#result{
+
+padding:20px;
+
 }
 
 .item{
+
 background:#222;
-padding:10px;
 margin:20px;
-text-align:left;
+padding:15px;
+border-radius:10px;
+
 }
 
 pre{
+
 white-space:pre-wrap;
+
 }
 
 </style>
 
 </head>
+
 <body>
 
-<h2>フォルダまたは画像をドラッグしてください</h2>
+<div id="dropzone">
 
-<div id="drop">ここにドロップ</div>
+フォルダまたはPNGをここにドラッグしてください  
+<br><br>
+または  
+<br><br>
 
-<div id="list"></div>
-
-<script>
-
-const drop = document.getElementById("drop")
-const list = document.getElementById("list")
-
-drop.addEventListener("dragover", e=>{
-    e.preventDefault()
-})
-
-drop.addEventListener("drop", async e=>{
-
-    e.preventDefault()
-
-    const files = e.dataTransfer.files
-
-    const formData = new FormData()
-
-    for(let f of files){
-
-        formData.append("files", f)
-    }
-
-    list.innerHTML = "解析中..."
-
-    const res = await fetch("/",{
-        method:"POST",
-        body:formData
-    })
-
-    const html = await res.text()
-
-    document.open()
-    document.write(html)
-    document.close()
-
-})
-
-</script>
-
-{% for r in results %}
-
-<div class="item">
-
-<b>{{r.name}}</b>
-
-<pre>{{r.text}}</pre>
+<input type="file" id="fileInput" multiple webkitdirectory>
 
 </div>
 
-{% endfor %}
+<div id="result"></div>
+
+<script>
+
+const dropzone = document.getElementById("dropzone")
+const result = document.getElementById("result")
+const fileInput = document.getElementById("fileInput")
+
+// ドラッグオーバー
+dropzone.addEventListener("dragover",(e)=>{
+
+e.preventDefault()
+dropzone.classList.add("hover")
+
+})
+
+// ドラッグ離脱
+dropzone.addEventListener("dragleave",()=>{
+
+dropzone.classList.remove("hover")
+
+})
+
+// ドロップ
+dropzone.addEventListener("drop",(e)=>{
+
+e.preventDefault()
+
+dropzone.classList.remove("hover")
+
+handleFiles(e.dataTransfer.files)
+
+})
+
+// ファイル選択
+fileInput.addEventListener("change",(e)=>{
+
+handleFiles(e.target.files)
+
+})
+
+
+async function handleFiles(files){
+
+result.innerHTML = "アップロード中..."
+
+let formData = new FormData()
+
+for(let file of files){
+
+formData.append("files",file)
+
+}
+
+const res = await fetch("/",{
+
+method:"POST",
+body:formData
+
+})
+
+const html = await res.text()
+
+document.open()
+document.write(html)
+document.close()
+
+}
+
+</script>
 
 </body>
 </html>

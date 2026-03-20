@@ -18,8 +18,7 @@ body{
     display:flex;
     gap:10px;
     align-items:center;
-
-    position:fixed;   /* ←これ追加 */
+    position:fixed;
     top:0;
     left:0;
     width:100%;
@@ -45,7 +44,7 @@ body{
 #main{
     display:flex;
     height:calc(100vh - 100px);
-    margin-top:100px;   /* ← これ追加 */
+    margin-top:100px;
 }
 
 #gallery{
@@ -53,15 +52,14 @@ body{
     background:#151515;
     overflow:auto;
     padding:10px;
-
-    height:100%;   /* ←追加 */
-
+    height:100%;
     display:grid;
     grid-template-columns:repeat(auto-fill, minmax(120px, 1fr));
     gap:10px;
+    position:relative;
 }
 
-#gallery img{
+#gallery img.thumb{
     width:100%;
     aspect-ratio:1/1;
     object-fit:cover;
@@ -69,19 +67,43 @@ body{
     cursor:pointer;
 }
 
-#gallery img.active{
+#gallery img.thumb.active{
     outline:3px solid #00eaff;
     transform:scale(1.05);
+}
+
+#galleryPreview{
+    position:absolute;
+    left:0;
+    right:0;
+    height:100%;
+    background:rgba(0,0,0,0.15);
+    display:none;
+    justify-content:center;
+    align-items:center;
+    z-index:2000;
+    padding:20px;
+    box-sizing:border-box;
+}
+
+#galleryPreview.show{
+    display:flex;
+}
+
+#galleryPreviewImg{
+    max-width:85%;
+    max-height:85%;
+    object-fit:contain;
+    border-radius:12px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.5);
+    background:#111;
 }
 
 #info{
     width:60%;
     background:#1c1c1c;
     padding:20px;
-
-    top:100px;          /* ← 上バー分の高さ */
-    height:100%;     /* ←これに変更 */
-
+    height:100%;
     overflow:auto;
     scrollbar-width:thin;
     box-shadow:-2px 0 10px rgba(0,0,0,0.5);
@@ -98,26 +120,25 @@ body{
 }
 
 h2{
-    color:#ffffff; /* デフォルト */
-}
-
-/* 個別指定 */
-h2:nth-of-type(1){
-    color:#00eaff; /* Prompt（シアン） */
+    color:#ffffff;
 }
 
 h2:nth-of-type(2){
-    color:#ff6b6b; /* Negative（赤） */
+    color:#00eaff;
 }
 
 h2:nth-of-type(3){
-    color:#aaaaaa; /* Other（グレー） */
+    color:#ff6b6b;
 }
 
+h2:nth-of-type(4){
+    color:#aaaaaa;
+}
 
 #fileinfo{
-color:#ffd700; /* ゴールド系 */
-font-weight:bold;
+    color:#ffd700;
+    font-weight:bold;
+    white-space:pre-wrap;
 }
 
 #toast{
@@ -134,42 +155,47 @@ font-weight:bold;
     pointer-events:none;
     font-weight:bold;
 }
-
-
 </style>
 </head>
 
 <body>
 
 <div id="topbar">
-<div id="dropzone">
-フォルダ / 画像 をドラッグ (PNG / WEBP / JPG)<br>
-<small style="color:#aaa;">
-※複数ファイルの読み込みが可能です。<br>
-※フォルダは1つずつ追加してください（複数同時は非対応）
-</small>
-</div>
-<button id="resetBtn" onclick="resetViewer()">リセット</button>
+    <div id="dropzone">
+        フォルダ / 画像 をドラッグ (PNG / WEBP / JPG)<br>
+        <small style="color:#aaa;">
+            ※複数ファイルの読み込みが可能です。<br>
+            ※フォルダは1つずつ追加してください（複数同時は非対応）
+        </small>
+    </div>
+    <button id="resetBtn" onclick="resetViewer()">リセット</button>
 </div>
 
 <div id="main">
-<div id="gallery"></div>
-<div id="info">
-<h2>File Info</h2>
-<div id="fileinfo"></div>
-<h2>Prompt <button onclick="copyText('prompt')">コピー</button></h2>
-<div id="prompt"></div>
-<h2>Negative <button onclick="copyText('negative')">コピー</button></h2>
-<div id="negative"></div>
-<h2>Other <button onclick="copyText('other')">コピー</button></h2>
-<div id="other"></div>
+    <div id="gallery">
+        <div id="galleryPreview" onclick="closeGalleryPreview()">
+            <img id="galleryPreviewImg" src="" alt="preview">
+        </div>
+    </div>
 
+    <div id="info">
+        <h2>File Info</h2>
+        <div id="fileinfo"></div>
 
+        <h2>Prompt <button onclick="copyText('prompt')">コピー</button></h2>
+        <div id="prompt"></div>
+
+        <h2>Negative <button onclick="copyText('negative')">コピー</button></h2>
+        <div id="negative"></div>
+
+        <h2>Other <button onclick="copyText('other')">コピー</button></h2>
+        <div id="other"></div>
+    </div>
 </div>
-</div>
+
+<div id="toast">コピーしました</div>
 
 <script>
-
 const gallery = document.getElementById("gallery")
 const dropzone = document.getElementById("dropzone")
 
@@ -178,16 +204,32 @@ let allFiles = []
 let currentIndex = 0
 const BATCH = 60
 
-function copyText(id){
-    const text = document.getElementById(id).textContent
-    navigator.clipboard.writeText(text)
+function openGalleryPreview(file){
+    const preview = document.getElementById("galleryPreview")
+    const previewImg = document.getElementById("galleryPreviewImg")
+
+    const url = URL.createObjectURL(file)
+    previewImg.src = url
+
+    preview.style.top = gallery.scrollTop + "px"
+    preview.classList.add("show")
+
+    previewImg.onload = ()=>{
+        URL.revokeObjectURL(url)
+    }
 }
 
+function closeGalleryPreview(){
+    const preview = document.getElementById("galleryPreview")
+    const previewImg = document.getElementById("galleryPreviewImg")
+
+    preview.classList.remove("show")
+    previewImg.src = ""
+}
 
 function showToast(){
     const toast = document.getElementById("toast")
     toast.style.opacity = 1
-
     setTimeout(()=>{
         toast.style.opacity = 0
     },1500)
@@ -196,43 +238,50 @@ function showToast(){
 function copyText(id){
     const text = document.getElementById(id).textContent
     navigator.clipboard.writeText(text)
-
-    showToast() // 🔥 追加
+    showToast()
 }
 
 function resetViewer(){
-    gallery.innerHTML=""
+    document.querySelectorAll("#gallery img.thumb").forEach(img=>img.remove())
+
     allFiles = []
     currentIndex = 0
+    currentSelectedIndex = -1
 
-    document.getElementById("prompt").textContent=""
-    document.getElementById("negative").textContent=""
-    document.getElementById("other").textContent=""
-    document.getElementById("fileinfo").textContent=""
+    closeGalleryPreview()
+
+    document.getElementById("prompt").textContent = ""
+    document.getElementById("negative").textContent = ""
+    document.getElementById("other").textContent = ""
+    document.getElementById("fileinfo").textContent = ""
 }
 
 document.addEventListener("keydown", (e)=>{
+    const isPreviewOpen = document.getElementById("galleryPreview").classList.contains("show")
+
+    if(e.key === "Escape"){
+        closeGalleryPreview()
+        return
+    }
 
     if(currentSelectedIndex === -1) return
 
     if(e.key === "ArrowRight"){
         currentSelectedIndex++
-    }
-
-    if(e.key === "ArrowLeft"){
+    } else if(e.key === "ArrowLeft"){
         currentSelectedIndex--
+    } else {
+        return
     }
 
-    // 範囲制限
     if(currentSelectedIndex < 0) currentSelectedIndex = 0
     if(currentSelectedIndex >= allFiles.length) currentSelectedIndex = allFiles.length - 1
 
-    let file = allFiles[currentSelectedIndex]
-
+    const file = allFiles[currentSelectedIndex]
     readPrompt(file)
+    openGalleryPreview(file)
 
-    // 🔥 ハイライト同期
-    let imgs = document.querySelectorAll("#gallery img")
+    const imgs = document.querySelectorAll("#gallery img.thumb")
     imgs.forEach(el=>el.classList.remove("active"))
 
     if(imgs[currentSelectedIndex]){
@@ -241,33 +290,25 @@ document.addEventListener("keydown", (e)=>{
     }
 })
 
-/* ドラッグ */
-
 dropzone.addEventListener("dragover", e=>{
     e.preventDefault()
 })
 
 dropzone.addEventListener("drop", async (e)=>{
-
     e.preventDefault()
 
     let files = []
 
-    // 🔥 ① ファイル（単体）
     for(let f of e.dataTransfer.files){
-        f._root = "（直接追加）"
+        f._root = " "
         files.push(f)
     }
 
-    // 🔥 ② フォルダ（これが本命）
     if(e.dataTransfer.items){
-
         for(let item of e.dataTransfer.items){
-
             let entry = item.webkitGetAsEntry?.()
-
             if(entry){
-                await scanEntry(entry, files, entry.name) // ←🔥ここ重要！！
+                await scanEntry(entry, files, entry.name)
             }
         }
     }
@@ -276,23 +317,18 @@ dropzone.addEventListener("drop", async (e)=>{
 })
 
 async function scanEntry(entry, files, rootName){
-
     if(entry.isFile){
-
         await new Promise(resolve=>{
             entry.file(file=>{
-                file._root = rootName   // ←🔥確実にセット
+                file._root = rootName
                 files.push(file)
                 resolve()
             })
         })
-
     } else if(entry.isDirectory){
-
         const reader = entry.createReader()
 
         while(true){
-
             const entries = await new Promise(resolve=>{
                 reader.readEntries(resolve)
             })
@@ -300,25 +336,21 @@ async function scanEntry(entry, files, rootName){
             if(entries.length === 0) break
 
             for(const e of entries){
-                await scanEntry(e, files, rootName) // ←🔥固定でOK
+                await scanEntry(e, files, rootName)
             }
         }
     }
 }
 
-/* ファイルロード */
-
 function loadFiles(files){
-
     let newFiles = files.filter(file=>{
-        let name=file.name.toLowerCase()
+        let name = file.name.toLowerCase()
         return name.endsWith(".png") ||
                name.endsWith(".webp") ||
                name.endsWith(".jpg") ||
                name.endsWith(".jpeg")
     })
 
-    // 🔥 重複防止しつつ追加
     const seen = new Set(allFiles.map(f => f.name + "_" + f.size))
 
     let added = 0
@@ -332,19 +364,12 @@ function loadFiles(files){
         }
     }
 
-    // 🔥 追加分だけ表示
     loadNextBatch()
-
     console.log("追加枚数:", added)
 }
 
-/* バッチ読み込み */
-
 function loadNextBatch(){
-
     let end = currentIndex + BATCH
-
-    // 🔥 allFilesの最新までちゃんと見る
     if(end > allFiles.length){
         end = allFiles.length
     }
@@ -356,17 +381,16 @@ function loadNextBatch(){
 
         let img = document.createElement("img")
         img.src = url
+        img.className = "thumb"
 
-        // ここで個別に onclick を設定
         img.onclick = ()=>{
             readPrompt(file)
 
-            // ハイライト切替
-            document.querySelectorAll("#gallery img").forEach(el=>el.classList.remove("active"))
+            document.querySelectorAll("#gallery img.thumb").forEach(el=>el.classList.remove("active"))
             img.classList.add("active")
 
-            // インデックス保存
             currentSelectedIndex = allFiles.indexOf(file)
+            openGalleryPreview(file)
         }
 
         img.onload = ()=> URL.revokeObjectURL(url)
@@ -377,98 +401,79 @@ function loadNextBatch(){
     currentIndex = end
 }
 
-/* スクロールで追加読み込み */
-
 gallery.addEventListener("scroll", ()=>{
-
     if(gallery.scrollTop + gallery.clientHeight >= gallery.scrollHeight - 400){
-
         if(currentIndex < allFiles.length){
             loadNextBatch()
         }
     }
 })
 
-/* プロンプト取得 */
-
 async function readPrompt(file){
-
     const formData = new FormData()
     formData.append("file", file)
 
-    const res = await fetch("/read",{
+    const res = await fetch("/read", {
         method:"POST",
         body:formData
     })
 
     const data = await res.json()
-
-    let parsed = parsePrompt(data.text)
+    const parsed = parsePrompt(data.text)
 
     document.getElementById("prompt").textContent = parsed.prompt
     document.getElementById("negative").textContent = parsed.negative
 
-    let otherData = parseOther(parsed.other)
+    const otherData = parseOther(parsed.other)
     document.getElementById("other").textContent = formatOther(otherData)
 
-    // 🔥👇 ここに入れる！！！
-    let path = file.webkitRelativePath || file.name
-    let rootFolder = file._root || "（取得失敗）"
+    const rootFolder = file._root || "（取得失敗）"
 
     document.getElementById("fileinfo").textContent =
         "Folder : " + rootFolder + "\n" +
         "File   : " + file.name
-    }
-
-
-
-
-/* 解析 */
+    
+        
+}
 
 function parsePrompt(text){
-
-    let prompt=""
-    let negative=""
-    let other=""
+    let prompt = ""
+    let negative = ""
+    let other = ""
 
     let negIndex = text.indexOf("Negative prompt:")
 
     if(negIndex !== -1){
-
-        prompt = text.slice(0,negIndex).trim()
+        prompt = text.slice(0, negIndex).trim()
 
         let rest = text.slice(negIndex + "Negative prompt:".length)
         let stepsIndex = rest.indexOf("Steps:")
 
         if(stepsIndex !== -1){
-            negative = rest.slice(0,stepsIndex).trim()
+            negative = rest.slice(0, stepsIndex).trim()
             other = rest.slice(stepsIndex).trim()
-        }else{
+        } else {
             negative = rest.trim()
         }
-
-    }else{
-
+    } else {
         let stepsIndex = text.indexOf("Steps:")
 
         if(stepsIndex !== -1){
-            prompt = text.slice(0,stepsIndex).trim()
+            prompt = text.slice(0, stepsIndex).trim()
             other = text.slice(stepsIndex).trim()
-        }else{
+        } else {
             prompt = text.trim()
         }
     }
 
-    return {prompt,negative,other}
+    return {prompt, negative, other}
 }
 
 function parseOther(text){
-
     let data = {}
     let parts = text.split(",")
 
     for(let part of parts){
-
         let p = part.trim()
 
         if(p.includes(":")){
@@ -482,20 +487,18 @@ function parseOther(text){
 }
 
 function formatOther(data){
+    let out = ""
 
-    let out=""
-
-    if(data["Sampler"]) out += "Sampler : "+data["Sampler"]+"\n"
-    if(data["Steps"]) out += "Steps : "+data["Steps"]+"\n"
-    if(data["CFG scale"]) out += "CFG : "+data["CFG scale"]+"\n"
-    if(data["Seed"]) out += "Seed : "+data["Seed"]+"\n"
-    if(data["Size"]) out += "Size : "+data["Size"]+"\n"
-    if(data["Model"]) out += "Model : "+data["Model"]+"\n"
+    if(data["Sampler"]) out += "Sampler : " + data["Sampler"] + "\n"
+    if(data["Steps"]) out += "Steps : " + data["Steps"] + "\n"
+    if(data["CFG scale"]) out += "CFG : " + data["CFG scale"] + "\n"
+    if(data["Seed"]) out += "Seed : " + data["Seed"] + "\n"
+    if(data["Size"]) out += "Size : " + data["Size"] + "\n"
+    if(data["Model"]) out += "Model : " + data["Model"] + "\n"
 
     return out
 }
-
 </script>
-<div id="toast">コピーしました</div>
+
 </body>
 </html>
